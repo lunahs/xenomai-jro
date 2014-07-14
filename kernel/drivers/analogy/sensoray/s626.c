@@ -1311,10 +1311,13 @@ void s626_irq_service(void *arg)
 	struct s626_priv *devpriv = s626ptr->private;
 	int ret;
 
-	for (;!s626ptr->terminate_task;) {
+	while (!rtdm_task_should_stop()) {
 
 		ret = rtdm_event_wait(&devpriv->synch);
 		if (ret)
+			break;
+
+		if (s626ptr->terminate_task)
 			break;
 
 		switch (s626ptr->irqtype) {
@@ -1325,6 +1328,8 @@ void s626_irq_service(void *arg)
 			s626_irq_handle_dio_and_counter(s626ptr);
 			break;
 		}
+
+		s626ptr->irqtype = 0;
 
 		/* enable interrupt */
 		writel(s626ptr->irqstatus, devpriv->base_addr + P_IER);
@@ -2816,7 +2821,7 @@ static int dev_s626_attach(struct a4l_device *dev, a4l_lnkdesc_t *arg)
 {
 
 	int i, err = 0;
-	struct s626_struct * s626ptr = NULL;
+	struct s626_struct* s626ptr = NULL;
 
 	a4l_info(dev, "Attaching s626\n");
 
@@ -2954,6 +2959,8 @@ static int dev_s626_detach(struct a4l_device *dev)
 	}
 
 	s626ptr->terminate_task = 1;
+	rtdm_event_pulse(&devpriv->synch);
+
 	rtdm_task_join_nrt(&s626ptr->irq_service_task, 200);
 
 	pci_release_regions(s626ptr->pcidev);
