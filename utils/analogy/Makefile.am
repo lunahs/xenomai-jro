@@ -1,5 +1,7 @@
 sbin_PROGRAMS = analogy_config
 
+CCLD = $(top_srcdir)/scripts/wrap-link.sh $(CC)
+
 bin_PROGRAMS = \
 	cmd_read \
 	cmd_write \
@@ -29,6 +31,7 @@ analogy_config_LDADD = \
 	@XENO_USER_LDADD@		\
 	-lpthread -lrt
 
+cmd_read_LDFLAGS = $(XENO_POSIX_WRAPPERS)
 cmd_read_SOURCES = cmd_read.c
 cmd_read_LDADD = \
 	../../lib/analogy/libanalogy.la \
