@@ -297,6 +297,28 @@ int rtdm_task_sleep_until(nanosecs_abs_t wakeup_time);
  */
 int rtdm_task_sleep_abs(nanosecs_abs_t wakeup_time, enum rtdm_timer_mode mode);
 
+/**
+ * @brief Busy wait a specified amount of time
+ *
+ * @param[in] condition Expresion - TRUE will complete the waiting
+ * @param[in] busy_time The condition will be evaluated in a loop for this
+ * number of nanoseconds
+ * @param[in] sleep_time Before testing the condition again, the task will be
+ * put to sleep for this number of nanoseconds
+ *
+ * @return 0 on success, otherwise:
+ *
+ * - -EINTR is returned if calling task has been unblock by a signal or
+ * explicitly via rtdm_task_unblock().
+ *
+ * - -EPERM @e may be returned if an illegal invocation environment is
+ * detected.
+ *
+ * @coretags{primary-only, might-switch}
+ */
+int rtdm_task_busy_wait(bool condition, nanosecs_rel_t busy_time,
+	                nanosecs_rel_t sleep_time);
+
 #endif /* DOXYGEN_CPP */
 
 int __rtdm_task_sleep(xnticks_t timeout, xntmode_t mode)
