@@ -40,6 +40,12 @@
 #define MAX_SPEED 200000 		/* in nanoseconds */
 #define MIN_SPEED 2000000000  		/* in nanoseconds */
 
+#define PCI_VENDOR_ID_S626 0x1131
+#define PCI_DEVICE_ID_S626 0x7146
+#define PCI_SUBVENDOR_ID_S626 0x6000
+#define PCI_SUBDEVICE_ID_S626 0x0272
+
+
 static LIST_HEAD(s626_list);
 
 /*  TrimDac LogicalChan-to-PhysicalChan mapping table. */
@@ -54,12 +60,11 @@ static uint8_t trimadrs[] = {
  * also subvendor:subdevice ids, because otherwise it will conflict with
  * Philips SAA7146 media/dvb based cards.
  */
-static struct pci_device_id s626_pci_table[] = {
-	[0] = { 0x1131, 0x7146, 0x6000,0x0626, 0, 0, 0 },
-	[1] = { 0x1131, 0x7146, 0x6000, 626, 0, 0, 0 },
-	[2] = { 0, }
+static DEFINE_PCI_DEVICE_TABLE(s626_pci_table) = {
+	{ PCI_VENDOR_ID_S626, PCI_DEVICE_ID_S626,
+		PCI_SUBVENDOR_ID_S626, PCI_SUBDEVICE_ID_S626, 0, 0, 0 },
+	{ 0 }
 };
-
 MODULE_DEVICE_TABLE(pci, s626_pci_table);
 
 static struct pci_driver drv_pci_s626 = {
@@ -2819,22 +2824,41 @@ static void s626_initialize(struct s626_struct * s626ptr)
 
 static int dev_s626_attach(struct a4l_device *dev, a4l_lnkdesc_t *arg)
 {
-
-	int i, err = 0;
 	struct s626_struct* s626ptr = NULL;
+	unsigned long bus, slot;
+	struct list_head *ptr;
+	int i, err = 0;
 
 	a4l_info(dev, "Attaching s626\n");
 
-	s626ptr = kmalloc(sizeof(struct s626_struct), GFP_KERNEL);
-	if (s626ptr == NULL) {
-		__a4l_err("No memory for s626 structure\n");
-		return -ENOMEM;
+	if(arg->opts == NULL || arg->opts_size == 0)
+		bus = slot = 0;
+	else {
+		bus = arg->opts_size >= sizeof(unsigned long) ?
+			((unsigned long *)arg->opts)[0] : 0;
+		slot = arg->opts_size >= sizeof(unsigned long) * 2 ?
+			((unsigned long *)arg->opts)[1] : 0;
 	}
 
-	memset(s626ptr, 0x00, sizeof(struct s626_struct));
-	s626ptr->dev = dev;
+	list_for_each( ptr, &s626_list) {
+		s626ptr = list_entry(ptr, struct s626_struct, list);
 
-	rtdm_lock_init(&s626ptr->lock);
+		if (bus <= 0 && slot <=0) {
+		    if (s626ptr->private)
+			    continue;
+		    else
+			    break;
+		}
+
+		if  (bus == s626ptr->pcidev->bus->number &&
+		     slot == PCI_SLOT(s626ptr->pcidev->devfn))
+		     break;
+	}
+
+	if (s626ptr == NULL || s626ptr->private) {
+		__a4l_err("No available pci device \n");
+		return -EINVAL;
+	}
 
 	s626ptr->private = kmalloc(sizeof(struct s626_priv), GFP_KERNEL);
 	if (s626ptr->private == NULL) {
@@ -2842,25 +2866,15 @@ static int dev_s626_attach(struct a4l_device *dev, a4l_lnkdesc_t *arg)
 		return -ENOMEM;
 	}
 
-	list_add(&(s626ptr->list), &s626_list);
-
-	err = pci_register_driver(&drv_pci_s626);
-	if (err < 0) {
-		__a4l_err("pci_register_driver = %d\n", err);
-		return -ENOMEM;
-	}
-
 	pci_set_master(s626ptr->pcidev);
 	err = pci_request_regions(s626ptr->pcidev, dev->driver->board_name);
 	if (err < 0) {
 		__a4l_err( "Can't request regions\n");
-		pci_disable_device(s626ptr->pcidev);
 		return -ENOMEM;
 	}
 
-	s626ptr->private->base_addr = ioremap(pci_resource_start( s626ptr->pcidev, 0),
-					      pci_resource_len( s626ptr->pcidev, 0));
-
+	s626ptr->private->base_addr = ioremap(pci_resource_start(s626ptr->pcidev, 0),
+					      pci_resource_len(s626ptr->pcidev, 0));
 	if (s626ptr->private->base_addr == NULL)
 		return -ENOMEM;
 
@@ -2893,7 +2907,8 @@ static int dev_s626_attach(struct a4l_device *dev, a4l_lnkdesc_t *arg)
 
 	/* Allocate the subdevice structures. */
 	for (i = 0; i < 6; ++i) {
-		struct a4l_subdevice *subd = a4l_alloc_subd(setup_subds[i].sizeof_priv,
+		struct a4l_subdevice *subd;
+		subd  = a4l_alloc_subd(setup_subds[i].sizeof_priv,
 						  setup_subds[i].setup_func);
 		if (subd == NULL)
 			return -ENOMEM;
@@ -2904,6 +2919,8 @@ static int dev_s626_attach(struct a4l_device *dev, a4l_lnkdesc_t *arg)
 	}
 
 	s626_initialize(s626ptr);
+
+	s626ptr->dev = dev;
 
 	return 0;
 }
@@ -2949,58 +2966,69 @@ static int dev_s626_detach(struct a4l_device *dev)
 
 			close_dmab(s626ptr, &s626ptr->private->RPSBuf, DMABUF_SIZE);
 			close_dmab(s626ptr, &s626ptr->private->ANABuf, DMABUF_SIZE);
+
+			iounmap(s626ptr->private->base_addr);
+			s626ptr->private->base_addr = NULL;
 		}
 
-		if (a4l_get_irq(dev) != A4L_IRQ_UNUSED)
-			a4l_free_irq(dev, a4l_get_irq(dev));
-
-		if (s626ptr->private->base_addr)
-			iounmap(s626ptr->private->base_addr);
 	}
+
+	if (a4l_get_irq(dev) != A4L_IRQ_UNUSED)
+		a4l_free_irq(dev, a4l_get_irq(dev));
 
 	s626ptr->terminate_task = 1;
 	rtdm_event_pulse(&devpriv->synch);
-
 	rtdm_task_join_nrt(&s626ptr->irq_service_task, 200);
-
 	pci_release_regions(s626ptr->pcidev);
-	pci_disable_device(s626ptr->pcidev);
-
-	pci_unregister_driver(&drv_pci_s626);
 
 	if (s626ptr->private)
 		kfree(s626ptr->private);
 
-	list_del(&(s626ptr->list));
-
-	kfree(s626ptr);
-
 	return 0;
 }
 
-static int s626_pci_probe(struct pci_dev *dev, const struct pci_device_id *ent)
+static int s626_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
-	struct s626_struct * s626ptr = NULL;
-	struct list_head *ptr;
+	struct s626_struct *s626ptr;
 	int err = 0;
 
+	s626ptr = kzalloc(sizeof(struct s626_struct), GFP_KERNEL);
+	if (s626ptr == NULL)
+		return -ENOMEM;
+
+	rtdm_lock_init(&s626ptr->lock);
+
+	s626ptr->pcidev = dev;
 	if (pci_enable_device(dev) < 0) {
 		__a4l_err("error enabling s626\n");
 		err = -EIO;
+		goto out;
 	}
 
-	list_for_each( ptr, &s626_list) {
-		s626ptr = list_entry(ptr, struct s626_struct, list);
-		if (s626ptr->pcidev == NULL)
-			s626ptr->pcidev = dev;
-	}
+	list_add(&s626ptr->list, &s626_list);
+
+out:
+        if (err < 0)
+		kfree(s626ptr);
 
 	return err;
 }
 
 static void s626_pci_remove(struct pci_dev *dev)
 {
+	struct list_head *this;
 
+	list_for_each(this, &s626_list) {
+		struct s626_struct *s626ptr =
+			list_entry(this, struct s626_struct, list);
+
+		if(s626ptr->pcidev == dev) {
+			pci_disable_device(dev);
+			list_del(this);
+			kfree(s626ptr);
+			break;
+		}
+	}
 }
 
 static struct a4l_driver drv_s626 = {
@@ -3011,19 +3039,32 @@ static struct a4l_driver drv_s626 = {
 	.privdata_size = sizeof(struct s626_priv),
 };
 
-static int __init drv_s626_init(void)
+static int s626_register(struct a4l_driver *a4l_drv, struct pci_driver *pci_drv)
 {
-	return a4l_register_drv(&drv_s626);
+	int ret;
+
+	ret =  a4l_register_drv(a4l_drv);
+	if (ret < 0)
+		return ret;
+
+	ret = pci_register_driver(pci_drv);
+	if (ret) {
+		a4l_unregister_drv(a4l_drv);
+		return ret;
+	}
+
+	return 0;
 }
 
-static void __exit drv_s626_cleanup(void)
+static int s626_unregister(struct a4l_driver *a4l_drv, struct pci_driver *pci_drv)
 {
-	a4l_unregister_drv(&drv_s626);
+	pci_unregister_driver(pci_drv);
+	return a4l_unregister_drv(a4l_drv);
 }
+
+module_driver(drv_s626, s626_register, s626_unregister, &drv_pci_s626);
 
 MODULE_DESCRIPTION("Analogy driver for Sensoray Model 626 board.");
 MODULE_LICENSE("GPL");
 
-module_init(drv_s626_init);
-module_exit(drv_s626_cleanup);
 
