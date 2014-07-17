@@ -916,7 +916,7 @@ static void send_adc(struct s626_struct * s626ptr, uint32_t val)
 	 * the next DAC write.  This is detected when FB_BUFFER2 MSB changes
 	 * from 0x00 to 0xFF.
 	 */
-	rtdm_task_busy_wait(!(RR7146(P_FB_BUFFER2) & 0xFF000000), 1000, 2000);
+	rtdm_task_busy_wait((RR7146(P_FB_BUFFER2) & 0xFF000000), 1000, 2000);
 }
 
 /*  Private helper function: Write setpoint to an application DAC channel. */
@@ -1724,8 +1724,7 @@ static int s626_ai_insn_read(struct a4l_subdevice *subd, struct a4l_kernel_instr
 		/*  shift into FB BUFFER 1 register. */
 
 		/*  Wait for ADC done. */
-		while (!(RR7146(P_PSR) & PSR_GPIO2))
-			rtdm_task_sleep(2000);
+		rtdm_task_busy_wait((RR7146(P_PSR) & PSR_GPIO2), 1000, 2000);
 
 		/*  Fetch ADC data. */
 		if (n != 0)
@@ -1757,8 +1756,7 @@ static int s626_ai_insn_read(struct a4l_subdevice *subd, struct a4l_kernel_instr
 	/*  Wait for the data to arrive in FB BUFFER 1 register. */
 
 	/*  Wait for ADC done. */
-	while (!(RR7146(P_PSR) & PSR_GPIO2))
-		rtdm_task_sleep(2000);
+	rtdm_task_busy_wait((RR7146(P_PSR) & PSR_GPIO2), 1000, 2000);
 
 	/*  Fetch ADC data from audio interface's input shift register. */
 
@@ -2668,9 +2666,7 @@ static void s626_initialize(struct s626_struct * s626ptr)
 	 */
 	WR7146(P_I2CSTAT, I2C_CLKSEL | I2C_ABORT);
 	MC_ENABLE(P_MC2, MC2_UPLD_IIC);
-	while ((RR7146(P_MC2) & MC2_UPLD_IIC) == 0)
-		rtdm_task_sleep(2000);
-
+	rtdm_task_busy_wait((RR7146(P_MC2) & MC2_UPLD_IIC), 1000, 2000);
 	/*
 	 * Per SAA7146 data sheet, write to STATUS
 	 * reg twice to reset all  I2C error flags.
@@ -2678,8 +2674,7 @@ static void s626_initialize(struct s626_struct * s626ptr)
 	for (i = 0; i < 2; i++) {
 		WR7146(P_I2CSTAT, I2C_CLKSEL);
 		MC_ENABLE(P_MC2, MC2_UPLD_IIC);
-		while (!MC_TEST(P_MC2, MC2_UPLD_IIC))
-			rtdm_task_sleep(2000);
+		rtdm_task_busy_wait(MC_TEST(P_MC2, MC2_UPLD_IIC), 1000, 2000);
 	}
 
 	/*
