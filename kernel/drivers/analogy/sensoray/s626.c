@@ -33,6 +33,7 @@
 #include <asm/byteorder.h>
 #include <linux/pci.h>
 
+#include <rtdm/driver.h>
 #include <rtdm/analogy/driver.h>
 #include <rtdm/analogy/device.h>
 
@@ -694,12 +695,10 @@ static void debi_transfer(struct s626_struct * s626ptr)
 
 	/*  Wait for completion of upload from shadow RAM to DEBI control */
 	/*  register. */
-	while (!MC_TEST(P_MC2, MC2_UPLD_DEBI))
-		rtdm_task_sleep(2000);
+	rtdm_task_busy_wait(MC_TEST(P_MC2, MC2_UPLD_DEBI), 1000, 2000);
 
 	/*  Wait until DEBI transfer is done. */
-	while (RR7146(P_PSR) & PSR_DEBI_S)
-		rtdm_task_sleep(2000);
+	rtdm_task_busy_wait(!(RR7146(P_PSR) & PSR_DEBI_S), 1000, 2000);
 }
 
 static void debi_replace(struct s626_struct * s626ptr, uint16_t addr,
@@ -734,12 +733,11 @@ static uint32_t i2c_handshake(struct s626_struct * s626ptr, uint32_t val)
 	/*  upload confirmation. */
 
 	MC_ENABLE(P_MC2, MC2_UPLD_IIC);
-	while (!MC_TEST(P_MC2, MC2_UPLD_IIC))
-		rtdm_task_sleep(2000);
+	rtdm_task_busy_wait(MC_TEST(P_MC2, MC2_UPLD_IIC), 1000, 2000);
 
 	/*  Wait until I2C bus transfer is finished or an error occurs. */
-	while ((RR7146(P_I2CCTRL) & (I2C_BUSY | I2C_ERR)) == I2C_BUSY)
-		rtdm_task_sleep(2000);
+	rtdm_task_busy_wait((RR7146(P_I2CCTRL) & (I2C_BUSY | I2C_ERR)) != I2C_BUSY,
+		1000, 2000);
 
 	/*  Return non-zero if I2C error occurred. */
 	return RR7146(P_I2CCTRL) & I2C_ERR;
@@ -848,8 +846,7 @@ static void send_adc(struct s626_struct * s626ptr, uint32_t val)
 	 * Done by polling the DMAC enable flag; this flag is automatically
 	 * cleared when the transfer has finished.
 	 */
-	while ((RR7146(P_MC1) & MC1_A2OUT) != 0)
-		rtdm_task_sleep(2000);
+	rtdm_task_busy_wait(!(RR7146(P_MC1) & MC1_A2OUT) , 1000, 2000);
 
 	/* START THE OUTPUT STREAM TO THE TARGET DAC -------------------- */
 
@@ -866,8 +863,7 @@ static void send_adc(struct s626_struct * s626ptr, uint32_t val)
 	 * finished transferring the DAC's data DWORD from the output FIFO
 	 * to the output buffer register.
 	 */
-	while ((RR7146(P_SSR) & SSR_AF2_OUT) == 0)
-		rtdm_task_sleep(2000);
+	rtdm_task_busy_wait((RR7146(P_SSR) & SSR_AF2_OUT), 1000, 2000);
 
 	/* Set up to trap execution at slot 0 when the TSL sequencer cycles
 	 * back to slot 0 after executing the EOS in slot 5.  Also,
@@ -903,8 +899,8 @@ static void send_adc(struct s626_struct * s626ptr, uint32_t val)
 		 * from 0xFF to 0x00, which slot 0 causes to happen by shifting
 		 * out/in on SD2 the 0x00 that is always referenced by slot 5.
 		 */
-		while ((RR7146(P_FB_BUFFER2) & 0xFF000000) != 0)
-			rtdm_task_sleep(2000);
+		rtdm_task_busy_wait(!(RR7146(P_FB_BUFFER2) & 0xFF000000),
+			1000, 2000);
 	}
 	/* Either (1) we were too late setting the slot 0 trap; the TSL
 	 * sequencer restarted slot 0 before we could set the EOS trap flag,
@@ -920,8 +916,7 @@ static void send_adc(struct s626_struct * s626ptr, uint32_t val)
 	 * the next DAC write.  This is detected when FB_BUFFER2 MSB changes
 	 * from 0x00 to 0xFF.
 	 */
-	while ((RR7146(P_FB_BUFFER2) & 0xFF000000) == 0)
-		rtdm_task_sleep(2000);
+	rtdm_task_busy_wait(!(RR7146(P_FB_BUFFER2) & 0xFF000000), 1000, 2000);
 }
 
 /*  Private helper function: Write setpoint to an application DAC channel. */
