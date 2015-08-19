@@ -26,6 +26,8 @@
 #include <rtdm/analogy.h>
 #include <stdio.h>
 #include <errno.h>
+#include <limits.h>
+#include <float.h>
 #include "iniparser/iniparser.h"
 #include "boilerplate/list.h"
 #include "calibration.h"
@@ -72,6 +74,8 @@ static void data8_set(void *dst, lsampl_t val)
 static inline int read_dbl(double *d, struct _dictionary_ *f,const char *subd,
 			   int subd_idx, char *type, int type_idx)
 {
+
+	double not_found = DBL_MAX;
 	char *str;
 	int ret;
 
@@ -83,8 +87,8 @@ static inline int read_dbl(double *d, struct _dictionary_ *f,const char *subd,
 	if (ret < 0)
 		return ret;
 
-	*d = iniparser_getdouble(f, str, -255.0);
-	if (*d == -255.0)
+	*d = iniparser_getdouble(f, str, not_found);
+	if (*d == not_found)
 		ret = -ENOENT;
 	free(str);
 
@@ -94,6 +98,7 @@ static inline int read_dbl(double *d, struct _dictionary_ *f,const char *subd,
 static inline int read_int(int *val, struct _dictionary_ *f, const char *subd,
 			   int subd_idx, char *type)
 {
+	int not_found = INT_MAX;
 	char *str;
 	int ret;
 
@@ -103,8 +108,8 @@ static inline int read_int(int *val, struct _dictionary_ *f, const char *subd,
 	if (ret < 0)
 		return ret;
 
-	*val = iniparser_getint(f, str, 0xFFFF);
-	if (*val == 0xFFFF)
+	*val = iniparser_getint(f, str, not_found);
+	if (*val == not_found)
 		ret = -ENOENT;
 	free(str);
 
@@ -207,6 +212,7 @@ int a4l_read_calibration_file(char *name, struct a4l_calibration_data *data)
 	struct a4l_calibration_subdev_data *p = NULL;
 	struct _dictionary_ *d;
 	struct stat st;
+	int rc;
 
 	if (access(name, R_OK))
 		return -1;
@@ -222,8 +228,8 @@ int a4l_read_calibration_file(char *name, struct a4l_calibration_data *data)
 	CHK(read_str, &data->board_name, d, PLATFORM_STR, BOARD_STR);
 
 	for (k = 0; k < ARRAY_LEN(subdevice); k++) {
-		read_int(&nb_elements, d, subdevice[k], -1, ELEMENTS_STR);
-		if (nb_elements < 0 ) {
+		rc = read_int(&nb_elements, d, subdevice[k], -1, ELEMENTS_STR);
+		if (rc < 0  || nb_elements < 0 ) {
 			/* AO is optional */
 			if (!strncmp(subdevice[k], AO_SUBD_STR, sizeof(AO_SUBD_STR)))
 			     break;
