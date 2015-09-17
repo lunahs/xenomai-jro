@@ -15,6 +15,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
+#include <linux/fs.h>
 #include <linux/types.h>
 #include <linux/err.h>
 #include <cobalt/uapi/syscall.h>
@@ -773,7 +774,7 @@ COBALT_SYSCALL32emu(recvmsg, probing,
 	struct msghdr m;
 	ssize_t ret;
 
-	ret = sys32_get_msghdr(&m, umsg);
+	ret = sys32_get_msghdr(&m, umsg, READ);
 	if (ret)
 		return ret;
 
@@ -790,7 +791,7 @@ COBALT_SYSCALL32emu(sendmsg, probing,
 	struct msghdr m;
 	int ret;
 
-	ret = sys32_get_msghdr(&m, umsg);
+	ret = sys32_get_msghdr(&m, umsg, WRITE);
 
 	return ret ?: rtdm_fd_sendmsg(fd, &m, flags);
 }

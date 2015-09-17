@@ -19,6 +19,8 @@
 #ifndef _COBALT_RTDM_RTDM_H
 #define _COBALT_RTDM_RTDM_H
 
+#include <linux/fs.h>
+#include <linux/uio.h>
 #include <linux/types.h>
 #include <linux/fcntl.h>
 #include <linux/ioctl.h>
@@ -91,8 +93,7 @@ ssize_t rtdm_recvfrom(int s, void *buf, size_t len, int flags,
 	iov.iov_len = len;
 	msg.msg_name = from;
 	msg.msg_namelen = from ? *fromlen : 0;
-	msg.msg_iov = &iov;
-	msg.msg_iovlen = 1;
+	iov_iter_init(&msg.msg_iter, READ, &iov, 1, len);
 	msg.msg_control = NULL;
 	msg.msg_controllen = 0;
 
@@ -122,8 +123,7 @@ static inline ssize_t rtdm_sendto(int s, const void *buf, size_t len,
 	iov.iov_len = len;
 	msg.msg_name = (struct sockaddr *)to;
 	msg.msg_namelen = tolen;
-	msg.msg_iov = &iov;
-	msg.msg_iovlen = 1;
+	iov_iter_init(&msg.msg_iter, WRITE, &iov, 1, len);
 	msg.msg_control = NULL;
 	msg.msg_controllen = 0;
 
