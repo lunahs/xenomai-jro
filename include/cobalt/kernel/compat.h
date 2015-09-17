@@ -136,7 +136,8 @@ int sys32_put_siginfo(void __user *u_si, const struct siginfo *si,
 		      int overrun);
 
 int sys32_get_msghdr(struct msghdr *msg,
-		     const struct compat_msghdr __user *u_cmsg);
+		     const struct compat_msghdr __user *u_cmsg,
+		     int direction);
 
 int sys32_put_msghdr(struct compat_msghdr __user *u_cmsg,
 		     const struct msghdr *msg);

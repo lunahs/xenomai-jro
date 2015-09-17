@@ -15,6 +15,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
+#include <linux/uio.h>
 #include <linux/err.h>
 #include <linux/module.h>
 #include <cobalt/kernel/compat.h>
@@ -338,17 +339,19 @@ int sys32_put_siginfo(void __user *u_si, const struct siginfo *si,
 EXPORT_SYMBOL_GPL(sys32_put_siginfo);
 
 int sys32_get_msghdr(struct msghdr *msg,
-		     const struct compat_msghdr __user *u_cmsg)
+		     const struct compat_msghdr __user *u_cmsg,
+		     int direction)
 {
 	compat_uptr_t tmp1, tmp2, tmp3;
+	compat_size_t tmp4;
 
 	if (u_cmsg == NULL ||
 	    !access_rok(u_cmsg, sizeof(*u_cmsg)) ||
 	    __xn_get_user(tmp1, &u_cmsg->msg_name) ||
 	    __xn_get_user(msg->msg_namelen, &u_cmsg->msg_namelen) ||
 	    __xn_get_user(tmp2, &u_cmsg->msg_iov) ||
-	    __xn_get_user(msg->msg_iovlen, &u_cmsg->msg_iovlen) ||
 	    __xn_get_user(tmp3, &u_cmsg->msg_control) ||
+	    __xn_get_user(tmp4, &u_cmsg->msg_iovlen) ||
 	    __xn_get_user(msg->msg_controllen, &u_cmsg->msg_controllen) ||
 	    __xn_get_user(msg->msg_flags, &u_cmsg->msg_flags))
 		return -EFAULT;
@@ -357,9 +360,8 @@ int sys32_get_msghdr(struct msghdr *msg,
 		msg->msg_namelen = sizeof(struct sockaddr_storage);
 
 	msg->msg_name = compat_ptr(tmp1);
-	msg->msg_iov = compat_ptr(tmp2);
 	msg->msg_control = compat_ptr(tmp3);
-
+	iov_iter_init(&msg->msg_iter, direction, compat_ptr(tmp2), 1, tmp4);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(sys32_get_msghdr);
@@ -371,8 +373,8 @@ int sys32_put_msghdr(struct compat_msghdr __user *u_cmsg,
 	    !access_wok(u_cmsg, sizeof(*u_cmsg)) ||
 	    __xn_put_user(ptr_to_compat(msg->msg_name), &u_cmsg->msg_name) ||
 	    __xn_put_user(msg->msg_namelen, &u_cmsg->msg_namelen) ||
-	    __xn_put_user(ptr_to_compat(msg->msg_iov), &u_cmsg->msg_iov) ||
-	    __xn_put_user(msg->msg_iovlen, &u_cmsg->msg_iovlen) ||
+	    __xn_put_user(ptr_to_compat(msg->msg_iter.iov), &u_cmsg->msg_iov) ||
+	    __xn_put_user(msg->msg_iter.nr_segs, &u_cmsg->msg_iovlen) ||
 	    __xn_put_user(ptr_to_compat(msg->msg_control), &u_cmsg->msg_control) ||
 	    __xn_put_user(msg->msg_controllen, &u_cmsg->msg_controllen) ||
 	    __xn_put_user(msg->msg_flags, &u_cmsg->msg_flags))
