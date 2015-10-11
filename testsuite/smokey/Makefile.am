@@ -11,6 +11,9 @@ COBALT_SUBDIRS = 	\
 	fpu-stress	\
 	iddp		\
 	leaks		\
+	net_packet_dgram\
+	net_udp		\
+	net_common	\
 	posix-clock	\
 	posix-cond 	\
 	posix-fork	\
