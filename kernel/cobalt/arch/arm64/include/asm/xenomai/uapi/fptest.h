@@ -87,19 +87,19 @@
 					     "stp  d26, d27, [%0, #8 * 26]\n"	\
 					     "stp  d28, d29, [%0, #8 * 28]\n"	\
 					     "stp  d30, d31, [%0, #8 * 30]\n"	\
-					     :  /* No outputs. */	\
-					     : "r"(&__e[0])		\
-					     : "memory");		\
-									\
-			for (__i = 0; __i < 32; __i++)			\
-				if (__e[__i] != __val) {		\
-					__report("d%d: %llu != %u\n",	\
-						 __i, __e[__i], __val); \
-					__result = __e[__i];		\
-				}					\
-		}							\
-									\
-		__result;						\
+					     :  /* No outputs. */		\
+					     : "r"(&__e[0])			\
+					     : "memory");			\
+										\
+			for (__i = 0; __i < 32; __i++)				\
+				if (__e[__i] != __val) {			\
+					__report("d%d: 0x%llx != 0x%x\n",	\
+						 __i, __e[__i], __val); 	\
+					__result = __e[__i];			\
+				}						\
+		}								\
+										\
+		__result;							\
 	})
 
 #endif /* !_COBALT_ARM64_ASM_UAPI_FPTEST_H */
