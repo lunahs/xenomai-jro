@@ -67,7 +67,7 @@ int xnarch_fault_fpu_p(struct ipipe_trap_data *d)
 
 static inline struct fpsimd_state *get_fpu_owner(struct xnarchtcb *tcb)
 {
-	return &(tcb->core.tsp->fpsimd_state);
+	return &(tcb->xnfpsimd_state);
 }
 
 void xnarch_leave_root(struct xnthread *root)
@@ -120,7 +120,7 @@ int xnarch_handle_fpu_fault(struct xnthread *from,
 void xnarch_init_shadow_tcb(struct xnthread *thread)
 {
 	struct xnarchtcb *tcb = xnthread_archtcb(thread);
-	tcb->fpup = &(tcb->core.host_task->thread.fpsimd_state);
+	tcb->fpup = &(tcb->xnfpsimd_state);
 	xnthread_clear_state(thread, XNFPU);
 }
 

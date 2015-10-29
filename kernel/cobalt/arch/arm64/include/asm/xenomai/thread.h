@@ -24,6 +24,7 @@
 struct xnarchtcb {
 	struct xntcb core;
 #ifdef CONFIG_XENO_ARCH_FPU
+	struct fpsimd_state xnfpsimd_state;
 	struct fpsimd_state *fpup;
 #define xnarch_fpu_ptr(tcb)     ((tcb)->fpup)
 #endif
