@@ -44,6 +44,7 @@
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3,17,0)
 #include <linux/netdevice.h>
+#include <linux/trace_seq.h>
 
 #undef alloc_netdev
 #define alloc_netdev(sizeof_priv, name, name_assign_type, setup) \
@@ -56,7 +57,6 @@ trace_seq_buffer_ptr(struct trace_seq *s)
 {
 	return s->buffer + s->len;
 }
-
 #endif /* < 3.17 */
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3,16,0)
@@ -132,9 +132,5 @@ devm_hwmon_device_register_with_groups(struct device *dev, const char *name,
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3,10,0)
 #error "Xenomai/cobalt requires Linux kernel 3.10 or above"
 #endif /* < 3.10 */
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3,19,0)
-#define user_msghdr msghdr
-#endif
 
 #endif /* _COBALT_ASM_GENERIC_WRAPPERS_H */
