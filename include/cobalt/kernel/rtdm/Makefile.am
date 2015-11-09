@@ -10,6 +10,7 @@ noinst_HEADERS =	\
 	rtdm.h		\
 	serial.h	\
 	testing.h	\
+	gpiopwm.h	\
 	udd.h
 
 SUBDIRS = analogy
