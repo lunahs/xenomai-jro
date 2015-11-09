@@ -5,6 +5,7 @@ includesub_HEADERS =	\
 	autotune.h	\
 	can.h		\
 	ipc.h		\
+	gpiopwm.h	\
 	rtdm.h		\
 	serial.h	\
 	testing.h	\
