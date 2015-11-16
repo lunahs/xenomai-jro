@@ -163,8 +163,9 @@ static void *gpiopwm_manual_ctrl_thread(void *cookie)
 
 		config.duty_cycle = duty_cycle;
 	}
-err:
+
 	free(in);
+err:
         sem_post(&synch);
 
 	return NULL;
@@ -185,7 +186,7 @@ static void *gpiopwm_sweep_ctrl_thread(void *cookie)
 
 	pthread_setname_np(pthread_self(), "gpio-pwm.sweep");
 
-	delay = (struct timespec) { .tv_sec = 0, .tv_nsec = 3 * config.period };
+	delay = (struct timespec) { .tv_sec = 0, .tv_nsec = 10 * config.period };
 	values = (struct duty_values) { .direction = fwd, .x = MIN_DUTY_CYCLE };
 
 	sem_sync(&setup);
@@ -202,19 +203,22 @@ static void *gpiopwm_sweep_ctrl_thread(void *cookie)
 		nanosleep(&delay, NULL);
 
 		if (values.direction == bck) {
-			if (values.x - (step - 1)> MIN_DUTY_CYCLE)
+			if (values.x - (step - 1) > MIN_DUTY_CYCLE)
 				values.x -= step;
 			else {
 				values.direction = fwd;
+				values.x = MIN_DUTY_CYCLE;
 				continue;
 			}
 		}
 
 		if (values.direction == fwd) {
-			if (values.x + (step - 1)  < MAX_DUTY_CYCLE)
+			if (values.x + (step - 1) < MAX_DUTY_CYCLE)
 				values.x += step;
-			else
+			else {
 				values.direction = bck;
+				values.x = MAX_DUTY_CYCLE;
+			}
 		}
 	}
 	sem_post(&synch);
