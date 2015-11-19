@@ -33,7 +33,7 @@ static int step = 1;
 	.debug		=	0,		\
 }
 
-static struct rtgpiopwm_config config = GPIO_PWM_SERVO_CONFIG;
+static struct gpiopwm config = GPIO_PWM_SERVO_CONFIG;
 
 static void fail(const char *reason)
 {
@@ -110,18 +110,18 @@ static void *gpiopwm_init_thread(void *cookie)
 	int ret;
 
 	pthread_setname_np(pthread_self(), "gpio-pwm-handler");
-	ret = ioctl(dev, RTGPIOPWM_RTIOC_SET_CONFIG, config);
+	ret = ioctl(dev, GPIOPWM_RTIOC_SET_CONFIG, config);
 	if (ret)
 		error(1, ret, "failed to set config");
 
-	ioctl(dev, RTGPIOPWM_RTIOC_START);
+	ioctl(dev, GPIOPWM_RTIOC_START);
 
 	/* setup completed: allow handler to run */
 	sem_post(&setup);
 
 	/* wait for completion */
 	sem_sync(&synch);
-	ioctl(dev, RTGPIOPWM_RTIOC_STOP);
+	ioctl(dev, GPIOPWM_RTIOC_STOP);
 
 	return NULL;
 }
@@ -155,7 +155,7 @@ static void *gpiopwm_manual_ctrl_thread(void *cookie)
 		if (!duty_cycle && strncmp(in, "000", len - 1) != 0)
 			break;
 
-		ret = ioctl(dev, RTGPIOPWM_RTIOC_CHANGE_DUTY_CYCLE, duty_cycle);
+		ret = ioctl(dev, GPIOPWM_RTIOC_CHANGE_DUTY_CYCLE, duty_cycle);
 		if (ret) {
 			fprintf(stderr, "invalid duty cycle %d\n", duty_cycle);
 			break;
@@ -194,7 +194,7 @@ static void *gpiopwm_sweep_ctrl_thread(void *cookie)
 		if (stop)
 			break;
 
-		ret = ioctl(dev, RTGPIOPWM_RTIOC_CHANGE_DUTY_CYCLE, values.x);
+		ret = ioctl(dev, GPIOPWM_RTIOC_CHANGE_DUTY_CYCLE, values.x);
 		if (ret) {
 			fprintf(stderr, "invalid duty cycle %d\n", values.x);
 			break;

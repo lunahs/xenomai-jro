@@ -27,7 +27,7 @@
 
 #define RTPWM_PROFILE_VER			1
 
-struct rtgpiopwm_config {
+struct gpiopwm {
 	unsigned int duty_cycle;
 	unsigned int range_min;
 	unsigned int range_max;
@@ -38,19 +38,19 @@ struct rtgpiopwm_config {
 
 #define RTIOC_TYPE_PWM		RTDM_CLASS_PWM
 
-#define RTGPIOPWM_RTIOC_SET_CONFIG \
-	_IOW(RTIOC_TYPE_PWM, 0x00, struct rtgpiopwm_config)
+#define GPIOPWM_RTIOC_SET_CONFIG \
+	_IOW(RTIOC_TYPE_PWM, 0x00, struct gpiopwm)
 
-#define RTGPIOPWM_RTIOC_GET_CONFIG \
-	_IOR(RTIOC_TYPE_PWM, 0x10, struct rtgpiopwm_config)
+#define GPIOPWM_RTIOC_GET_CONFIG \
+	_IOR(RTIOC_TYPE_PWM, 0x10, struct gpiopwm)
 
-#define RTGPIOPWM_RTIOC_START \
+#define GPIOPWM_RTIOC_START \
 	_IO(RTIOC_TYPE_PWM, 0x20)
 
-#define RTGPIOPWM_RTIOC_STOP \
+#define GPIOPWM_RTIOC_STOP \
 	_IO(RTIOC_TYPE_PWM, 0x30)
 
-#define RTGPIOPWM_RTIOC_CHANGE_DUTY_CYCLE \
+#define GPIOPWM_RTIOC_CHANGE_DUTY_CYCLE \
 	_IOW(RTIOC_TYPE_PWM, 0x40, unsigned int)
 
 
