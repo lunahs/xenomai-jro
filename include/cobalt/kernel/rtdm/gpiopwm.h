@@ -21,4 +21,4 @@
 #include <rtdm/rtdm.h>
 #include <rtdm/uapi/gpiopwm.h>
 
-#endif /* !_COBALT_PWM_SERIAL_H */
+#endif /* !_COBALT_RTDM_PWM_H */

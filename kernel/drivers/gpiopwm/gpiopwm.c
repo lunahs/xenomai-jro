@@ -28,12 +28,13 @@ MODULE_VERSION("0.0.1");
 MODULE_LICENSE("GPL");
 
 #define MAX_DUTY_CYCLE		100
+#define MAX_SAMPLES		(MAX_DUTY_CYCLE + 1)
 
 struct gpiopwm_debug_info {
-	unsigned int expected[MAX_DUTY_CYCLE + 1];
-	unsigned int max_on[MAX_DUTY_CYCLE + 1];
-	unsigned int min_on[MAX_DUTY_CYCLE + 1];
-	unsigned int delta[MAX_DUTY_CYCLE + 1];
+	unsigned int expected[MAX_SAMPLES];
+	unsigned int max_on[MAX_SAMPLES];
+	unsigned int min_on[MAX_SAMPLES];
+	unsigned int delta[MAX_SAMPLES];
 	nanosecs_abs_t on;
 };
 
@@ -96,16 +97,10 @@ static inline void gpiopwm_dbg_print_stats(struct gpiopwm_priv *ctx,
 	expected = ctx->dbg->expected[duty_cycle];
 
 	min = ctx->dbg->min_on[duty_cycle];
-	if (duty_cycle < MAX_DUTY_CYCLE)
-		next_min = ctx->dbg->min_on[duty_cycle + 1];
-	else
-		next_min = UINT_MAX;
+	next_min = duty_cycle < MAX_DUTY_CYCLE ? ctx->dbg->min_on[duty_cycle + 1] : UINT_MAX;
 
 	max = ctx->dbg->max_on[duty_cycle];
-	if (duty_cycle > 0)
-		prev_max = ctx->dbg->max_on[duty_cycle - 1];
-	else
-		prev_max = 0;
+	prev_max = duty_cycle > 0 ? ctx->dbg->max_on[duty_cycle - 1] : 0;
 
 	dev_name = dev_ctx->device->name;
 	gpio = ctx->gpio;
@@ -192,7 +187,7 @@ static void gpiopwm_handle_duty_timer(rtdm_timer_t *timer)
 		gpiopwm_dbg_update(ctx);
 }
 
-static inline int gpiopwm_config(struct rtdm_fd *fd, struct rtgpiopwm_config *conf)
+static inline int gpiopwm_config(struct rtdm_fd *fd, struct gpiopwm *conf)
 {
 	struct rtdm_dev_context *dev_ctx = rtdm_fd_to_context(fd);
 	struct gpiopwm_priv *ctx = rtdm_fd_to_private(fd);
@@ -222,8 +217,8 @@ static inline int gpiopwm_config(struct rtdm_fd *fd, struct rtgpiopwm_config *co
 	ctx->duty.range_min = ctx->ctrl.duty.range_min = conf->range_min;
 	ctx->duty.range_max = ctx->ctrl.duty.range_max = conf->range_max;
 
-	/* if debug mode was enabled at config time */
-	for (i = 0; ctx->dbg && i < MAX_DUTY_CYCLE + 1; i++) {
+	for (i = 0; ctx->dbg && i < MAX_SAMPLES; i++) {
+
 		ctx->dbg->min_on[i] = UINT_MAX;
 		ctx->dbg->max_on[i] = 0;
 		ctx->dbg->delta[i] = 0;
@@ -250,12 +245,12 @@ static inline int gpiopwm_change_duty_cycle(struct gpiopwm_priv *ctx, unsigned i
 	if (cycle > MAX_DUTY_CYCLE)
 		return -EINVAL;
 
-	/* update on next timeout and keep a copy */
-	ctx->ctrl.update = 1;
-
-	/* do the calculations on this thread */
+	/* prepare the new data on the calling thread */
 	ctx->ctrl.duty.cycle = cycle;
 	ctx->ctrl.duty.period = duty_period(&ctx->ctrl.duty);
+
+	/* update data on the next base signal timeout */
+	ctx->ctrl.update = 1;
 
 	return 0;
 }
@@ -298,14 +293,14 @@ static int gpiopwm_ioctl_rt(struct rtdm_fd *fd, unsigned int request, void __use
 	int err = 0;
 
 	switch (request) {
-	case RTGPIOPWM_RTIOC_SET_CONFIG:
+	case GPIOPWM_RTIOC_SET_CONFIG:
 		return -ENOSYS;
-	case RTGPIOPWM_RTIOC_CHANGE_DUTY_CYCLE:
+	case GPIOPWM_RTIOC_CHANGE_DUTY_CYCLE:
 		return gpiopwm_change_duty_cycle(ctx, (unsigned long) arg);
 		break;
-	case RTGPIOPWM_RTIOC_START:
+	case GPIOPWM_RTIOC_START:
 		return gpiopwm_start(fd);
-	case RTGPIOPWM_RTIOC_STOP:
+	case GPIOPWM_RTIOC_STOP:
 		return gpiopwm_stop(fd);
 	default:
 		err = -EINVAL;
@@ -316,18 +311,18 @@ static int gpiopwm_ioctl_rt(struct rtdm_fd *fd, unsigned int request, void __use
 
 static int gpiopwm_ioctl_nrt(struct rtdm_fd *fd, unsigned int request, void __user *arg)
 {
-	struct rtgpiopwm_config conf;
+	struct gpiopwm conf;
 	int err = 0;
 
 	switch (request) {
-	case RTGPIOPWM_RTIOC_SET_CONFIG:
+	case GPIOPWM_RTIOC_SET_CONFIG:
 		if (!rtdm_rw_user_ok(fd, arg, sizeof(conf)))
 			return -EFAULT;
 
 		rtdm_copy_from_user(fd, &conf, arg, sizeof(conf));
 		err = gpiopwm_config(fd, &conf);
 		break;
-	case RTGPIOPWM_RTIOC_GET_CONFIG:
+	case GPIOPWM_RTIOC_GET_CONFIG:
 	default:
 		err = -EINVAL;
 	}
