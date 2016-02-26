@@ -8,6 +8,7 @@ smokey_SOURCES = main.c
 COBALT_SUBDIRS = 	\
 	arith 		\
 	bufp		\
+	cpu-affinity	\
 	fpu-stress	\
 	iddp		\
 	leaks		\
@@ -32,7 +33,7 @@ COBALT_SUBDIRS = 	\
 MERCURY_SUBDIRS =
 
 DIST_SUBDIRS = $(COBALT_SUBDIRS) $(MERCURY_SUBDIRS)
-	
+
 if XENO_COBALT
 wrappers = $(XENO_POSIX_WRAPPERS)
 SUBDIRS = $(COBALT_SUBDIRS)
