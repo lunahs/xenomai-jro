@@ -29,33 +29,34 @@
 /*
  * To keep the #ifdefery as readable as possible, please:
  *
- * - keep the conditional structure flat, no nesting (e.g. do not nest
+ * - keep the conditional structure flat, no nesting (e.g. do not fold
  *   the pre-3.11 conditions into the pre-3.14 ones).
- * - group all wrappers which share the same condition.
+ * - group all wrappers for a single kernel revision.
+ * - list conditional blocks in order of kernel release, latest first
  * - identify the first kernel release for which the wrapper should
  *   be defined, instead of testing the existence of a preprocessor
  *   symbol, so that obsolete wrappers can be spotted.
- * - put the newer wrappers in front, so that old wrappers can be removed
- *   without side effects on newer wrappers.
  */
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3,19,0)
 #define user_msghdr msghdr
-#endif /* < 3.19 */
+#endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3,17,0)
 #include <linux/netdevice.h>
-#include <linux/trace_seq.h>
 
 #undef alloc_netdev
 #define alloc_netdev(sizeof_priv, name, name_assign_type, setup) \
 	alloc_netdev_mqs(sizeof_priv, name, setup, 1, 1)
+ 
+#include <linux/trace_seq.h>
 
 static inline unsigned char *
 trace_seq_buffer_ptr(struct trace_seq *s)
 {
 	return s->buffer + s->len;
 }
+
 #endif /* < 3.17 */
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3,16,0)
@@ -71,28 +72,30 @@ trace_seq_buffer_ptr(struct trace_seq *s)
 #include <linux/pci.h>
 
 #ifdef CONFIG_PCI
-#define pci_enable_msix_range \
-	COBALT_BACKPORT(pci_enable_msix_range)
+#define pci_enable_msix_range COBALT_BACKPORT(pci_enable_msix_range)
 #ifdef CONFIG_PCI_MSI
 int pci_enable_msix_range(struct pci_dev *dev,
-			struct msix_entry *entries,
-			int minvec, int maxvec);
-#else /* not pci msi */
-static inline int pci_enable_msix_range(struct pci_dev *dev,
-					struct msix_entry *entries,
-					int minvec, int maxvec)
-{ return -ENOSYS; }
-#endif /* not pci msi */
-#endif /* pci */
+			  struct msix_entry *entries,
+			  int minvec, int maxvec);
+#else /* !CONFIG_PCI_MSI */
+static inline
+int pci_enable_msix_range(struct pci_dev *dev,
+			  struct msix_entry *entries,
+			  int minvec, int maxvec)
+{
+	return -ENOSYS;
+}
+#endif /* !CONFIG_PCI_MSI */
+#endif /* CONFIG_PCI */
 #endif /* < 3.14 */
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3,13,0)
 #include <linux/dma-mapping.h>
 #include <linux/hwmon.h>
 
-#define dma_set_mask_and_coherent \
-	COBALT_BACKPORT(dma_set_mask_and_coherent)
-static inline int dma_set_mask_and_coherent(struct device *dev, u64 mask)
+#define dma_set_mask_and_coherent COBALT_BACKPORT(dma_set_mask_and_coherent)
+static inline
+int dma_set_mask_and_coherent(struct device *dev, u64 mask)
 {
 	int rc = dma_set_mask(dev, mask);
 	if (rc == 0)
@@ -114,8 +117,11 @@ struct device *
 devm_hwmon_device_register_with_groups(struct device *dev, const char *name,
 				void *drvdata,
 				const struct attribute_group **groups);
-#endif /* hwmon */
-#endif /* < 3,13 */
+#endif /* !CONFIG_HWMON */
+
+#define reinit_completion(__x)	INIT_COMPLETION(*(__x))
+
+#endif /* < 3.13 */
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3,11,0)
 #define DEVICE_ATTR_RW(_name)	__ATTR_RW(_name)
