@@ -32,6 +32,18 @@ static inline int cobalt_is_relaxed(void)
 	return cobalt_get_current_mode() & XNRELAX;
 }
 
+#ifdef CONFIG_XENO_LAZY_SETSCHED
+static inline int cobalt_eager_setsched(void)
+{
+	return cobalt_is_relaxed();
+}
+#else
+static inline int cobalt_eager_setsched(void)
+{
+	return 1;
+}
+#endif
+
 static inline
 struct cobalt_mutex_state *mutex_get_state(struct cobalt_mutex_shadow *shadow)
 {
